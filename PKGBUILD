@@ -6,17 +6,17 @@
 
 
 pkgname=namecoin-core-wallet
-pkgver=v27.1
-pkgrel=2
+pkgver=v28.0
+pkgrel=1
 
 
 # Epoch is always set to the most recent PKGBUILD update time.
 # This allows for a forced downgrade without messing up versioning.
-epoch=1719961569
+epoch=1734934593
 
 
-# Release commit for 27.1
-_commit=ffebbdd604ac4ad01a212462a45620cf75b0cf31
+# Release commit for 28.0
+_commit=a08218ef2d44b81c53d25c399898e59271f4b642
 
 
 pkgdesc='This package provides the Namecoin Core GUI client, CLI daemon, and daemon user service.'
@@ -32,14 +32,12 @@ provides=('namecoin-core-wallet' 'namecoin-cli' 'namecoin-daemon'
 conflicts=('namecoin-core-wallet' 'namecoin-cli' 'namecoin-daemon'
            'namecoin-qt' 'namecoin-tx')
 source=('git+https://github.com/namecoin/namecoin-core'
-        'https://github.com/bitcoin/bitcoin/commit/8acdf66540834b9f9cf28f16d389e8b6a48516d5.patch'
         'namecoin.desktop'
         'namecoin1500x1500.png'
         'namecoind.service'
         'namecoind@.service')
 
 sha256sums=('SKIP'
-            '3b2adddcee6cddd905ea5f6f07c9404bbaef02c4f436be48bd8e49c8acc76d29'
             '0226f5a570bbbde63f332d43d9d712287b316c726280f2ae9e21b1b365b3f0dc'
             'f1e0593b872e18e0aebbf399bb5d77be255cb0aa160964c0528698a33f89ba04'
             '0a8cb03f33a895ccaed63fb9d946db69bee7188b7a9f41bc92879167c2718dcf'
@@ -50,7 +48,6 @@ prepare() {
     mkdir -p "$srcdir/tmp"
     cd "$srcdir/namecoin-core/"
     git checkout "$_commit"
-    git apply "$srcdir/8acdf66540834b9f9cf28f16d389e8b6a48516d5.patch"
 }
 
 
@@ -104,7 +101,6 @@ package() {
     install -Dm755 "$srcdir/tmp/${PREFIXDIR}/bin/namecoind"      "$pkgdir/usr/bin/namecoind"
     install -Dm755 "$srcdir/tmp/${PREFIXDIR}/bin/namecoin-cli"   "$pkgdir/usr/bin/namecoin-cli"
     install -Dm755 "$srcdir/tmp/${PREFIXDIR}/bin/namecoin-tx"    "$pkgdir/usr/bin/namecoin-tx"
-    install -Dm644 "$srcdir/tmp/${PREFIXDIR}/include/namecoinconsensus.h"       "$pkgdir/usr/include/namecoinconsensus.h"
     install -Dm644 "$srcdir/tmp/${PREFIXDIR}/share/man/man1/namecoin-cli.1"     "$pkgdir/usr/share/man/man1/namecoin-cli.1"
     install -Dm644 "$srcdir/tmp/${PREFIXDIR}/share/man/man1/namecoind.1"        "$pkgdir/usr/share/man/man1/namecoind.1"
     install -Dm644 "$srcdir/tmp/${PREFIXDIR}/share/man/man1/namecoin-qt.1"      "$pkgdir/usr/share/man/man1/namecoin-qt.1"
@@ -115,9 +111,5 @@ package() {
     gzip "$pkgdir/usr/share/man/man1/namecoin-qt.1"
     gzip "$pkgdir/usr/share/man/man1/namecoin-tx.1"
     gzip "$pkgdir/usr/share/man/man1/namecoin-wallet.1"
-    install -Dm755 "$srcdir/tmp/${PREFIXDIR}/lib/libnamecoinconsensus.so.0.0.0" "$pkgdir/usr/lib/libnamecoinconsensus.so.0.0.0"
-    cd "$pkgdir/usr/lib/"
-    ln -s "libnamecoinconsensus.so.0.0.0" "libnamecoinconsensus.so.0"
-    ln -s "libnamecoinconsensus.so.0.0.0" "libnamecoinconsensus.so"
 }
 
