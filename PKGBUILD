@@ -6,17 +6,17 @@
 
 
 pkgname=namecoin-core-wallet
-pkgver=v28.0
-pkgrel=3
+pkgver=v29.0
+pkgrel=1
 
 
 # Epoch is always set to the most recent PKGBUILD update time.
 # This allows for a forced downgrade without messing up versioning.
-epoch=1750163788
+epoch=1750282028
 
 
-# Release commit for 28.0
-_commit=a08218ef2d44b81c53d25c399898e59271f4b642
+# Release commit for 29.0
+_commit=5b1ae883ebfacfbba53542e455419466312550a2
 
 
 pkgdesc='This package provides the Namecoin Core GUI client, CLI daemon, and daemon user service.'
@@ -24,9 +24,9 @@ pkgdesc='This package provides the Namecoin Core GUI client, CLI daemon, and dae
 arch=('i686' 'x86_64')
 url='https://namecoin.org/'
 license=('MIT')
-depends=('desktop-file-utils' 'openssl' 'db4.8' 'boost' 'boost-libs' 'libevent'
-         'qt5-base' 'qt5-tools' 'qrencode' 'miniupnpc' 'protobuf' 'zeromq')
-makedepends=('git' 'gzip' 'patch' 'make' 'coreutils')
+depends=('desktop-file-utils' 'openssl' 'boost' 'boost-libs' 'libevent' 'qt5-base'
+         'qt5-tools' 'qrencode' 'miniupnpc' 'protobuf' 'zeromq' 'sqlite')
+makedepends=('git' 'gzip' 'patch' 'make' 'coreutils' 'cmake' 'doxygen')
 provides=('namecoin-core-wallet' 'namecoin-cli' 'namecoin-daemon'
           'namecoin-qt' 'namecoin-tx')
 conflicts=('namecoin-core-wallet' 'namecoin-cli' 'namecoin-daemon'
@@ -43,73 +43,38 @@ sha256sums=('SKIP'
             '0a8cb03f33a895ccaed63fb9d946db69bee7188b7a9f41bc92879167c2718dcf'
             '216bf1642feb5c37cc82a0801faf0717308f98e5aed86d75dac8fafd150a4b68')
 
-
-prepare() {
-    mkdir -p "$srcdir/tmp"
+build() {
+    PLATFORMNAME="x86_64-pc-linux-gnu"
+    [ "$CARCH" == i686 ] && PLATFORMNAME="i686-pc-linux-gnu" || true
     cd "$srcdir/namecoin-core/"
     git checkout "$_commit"
-}
-
-
-build() {
-
-    cd "$srcdir/namecoin-core/"
-    ./autogen.sh
-
-    # I have not tested the static build process on 32 bit machines yet,
-    # so I'm leaving i686 with the normal dynamic build.
-    if [ "$CARCH" == i686 ]; then
-        ./configure --prefix=/usr --enable-upnp-default --enable-hardening \
-                    --with-gui=qt5 --disable-tests \
-                    --enable-ecmult-static-precomputation
-
-        make DESTDIR="$srcdir/tmp"
-        make DESTDIR="$srcdir/tmp" install
-
-
-    # This should produce a static build that doesn't brick every time Arch
-    # rolls out updates to the system libraries.
-    elif [ "$CARCH" == x86_64 ]; then
-        ./configure --prefix="${srcdir}/namecoin-core/depends/x86_64-pc-linux-gnu" \
-                    --enable-glibc-back-compat \
-                    --enable-reduce-exports \
-                    --enable-upnp-default \
-                    --enable-hardening \
-                    --with-gui=qt5 \
-                    --disable-tests \
-                    --enable-ecmult-static-precomputation \
-                    LDFLAGS="-static-libstdc++"
-
-        make DESTDIR="$srcdir/tmp" STATIC=all
-        make DESTDIR="$srcdir/tmp" STATIC=all install
-    fi
+    make "CMAKE_POLICY_VERSION_MINIMUM=4.0" STATIC=1 -C depends NO_BOOST=1 NO_LIBEVENT=1 NO_QT=1 NO_SQLITE=1 NO_ZMQ=1 NO_USDT=1 NO_QR=1
+    cmake -B build -DCMAKE_POLICY_VERSION_MINIMUM="4.0" -DCMAKE_INSTALL_PREFIX="/usr" -DBerkeleyDB_INCLUDE_DIR:PATH="${srcdir}/namecoin-core/depends/${PLATFORMNAME}/include" -DBerkeleyDB_LIB_DIR:PATH="${srcdir}/namecoin-core/depends/${PLATFORMNAME}/lib" -DWITH_BDB=ON -DENABLE_WALLET=ON -DSECP256K1_INSTALL=ON -DREDUCE_EXPORTS=ON -DBUILD_UTIL_CHAINSTATE=OFF -DBUILD_GUI=ON -DCMAKE_BUILD_TYPE=MinSizeRel -DBUILD_TESTS=OFF -DBUILD_SHARED_LIBS=ON -DBUILD_WALLET_TOOL=ON -DBUILD_TX=ON -DBUILD_UTIL=ON -DWITH_ZMQ=ON -DAPPEND_LDFLAGS="-static-libstdc++ -s -w"
+    cmake --build build
 }
 
 package() {
-    if [ "$CARCH" == i686 ]; then
-        PREFIXDIR="/usr"
-    elif [ "$CARCH" == x86_64 ]; then
-        PREFIXDIR="${srcdir}/namecoin-core/depends/x86_64-pc-linux-gnu"
-    fi
     install -Dm644 "$srcdir/namecoin.desktop"      "$pkgdir/usr/share/applications/namecoin.desktop"
     install -Dm644 "$srcdir/namecoin1500x1500.png" "$pkgdir/usr/share/pixmaps/namecoin1500x1500.png"
     install -Dm644 "$srcdir/namecoind@.service"    "$pkgdir/usr/lib/systemd/system/namecoind@.service"
     install -Dm644 "$srcdir/namecoind.service"     "$pkgdir/usr/lib/systemd/user/namecoind.service"
     install -Dm644 "$srcdir/namecoin-core/COPYING" "$pkgdir/usr/share/licenses/namecoin/COPYING"
-    install -Dm755 "$srcdir/tmp/${PREFIXDIR}/bin/bench_namecoin" "$pkgdir/usr/bin/bench_namecoin"
-    install -Dm755 "$srcdir/tmp/${PREFIXDIR}/bin/namecoin-qt"    "$pkgdir/usr/bin/namecoin-qt"
-    install -Dm755 "$srcdir/tmp/${PREFIXDIR}/bin/namecoind"      "$pkgdir/usr/bin/namecoind"
-    install -Dm755 "$srcdir/tmp/${PREFIXDIR}/bin/namecoin-cli"   "$pkgdir/usr/bin/namecoin-cli"
-    install -Dm755 "$srcdir/tmp/${PREFIXDIR}/bin/namecoin-tx"    "$pkgdir/usr/bin/namecoin-tx"
-    install -Dm644 "$srcdir/tmp/${PREFIXDIR}/share/man/man1/namecoin-cli.1"     "$pkgdir/usr/share/man/man1/namecoin-cli.1"
-    install -Dm644 "$srcdir/tmp/${PREFIXDIR}/share/man/man1/namecoind.1"        "$pkgdir/usr/share/man/man1/namecoind.1"
-    install -Dm644 "$srcdir/tmp/${PREFIXDIR}/share/man/man1/namecoin-qt.1"      "$pkgdir/usr/share/man/man1/namecoin-qt.1"
-    install -Dm644 "$srcdir/tmp/${PREFIXDIR}/share/man/man1/namecoin-tx.1"      "$pkgdir/usr/share/man/man1/namecoin-tx.1"
-    install -Dm644 "$srcdir/tmp/${PREFIXDIR}/share/man/man1/namecoin-wallet.1"  "$pkgdir/usr/share/man/man1/namecoin-wallet.1"
+    install -Dm755 "$srcdir/namecoin-core/build/bin/namecoin-qt"    "$pkgdir/usr/bin/namecoin-qt"
+    install -Dm755 "$srcdir/namecoin-core/build/bin/namecoind"      "$pkgdir/usr/bin/namecoind"
+    install -Dm755 "$srcdir/namecoin-core/build/bin/namecoin-cli"   "$pkgdir/usr/bin/namecoin-cli"
+    install -Dm755 "$srcdir/namecoin-core/build/bin/namecoin-tx"    "$pkgdir/usr/bin/namecoin-tx"
+    install -Dm755 "$srcdir/namecoin-core/build/bin/namecoin-wallet"    "$pkgdir/usr/bin/namecoin-wallet"
+    install -Dm755 "$srcdir/namecoin-core/build/bin/namecoin-util"    "$pkgdir/usr/bin/namecoin-util"
+    install -Dm644 "$srcdir/namecoin-core/doc/man/namecoin-cli.1"     "$pkgdir/usr/share/man/man1/namecoin-cli.1"
+    install -Dm644 "$srcdir/namecoin-core/doc/man/namecoind.1"        "$pkgdir/usr/share/man/man1/namecoind.1"
+    install -Dm644 "$srcdir/namecoin-core/doc/man/namecoin-qt.1"      "$pkgdir/usr/share/man/man1/namecoin-qt.1"
+    install -Dm644 "$srcdir/namecoin-core/doc/man/namecoin-tx.1"      "$pkgdir/usr/share/man/man1/namecoin-tx.1"
+    install -Dm644 "$srcdir/namecoin-core/doc/man/namecoin-wallet.1"  "$pkgdir/usr/share/man/man1/namecoin-wallet.1"
+    install -Dm644 "$srcdir/namecoin-core/doc/man/namecoin-util.1"  "$pkgdir/usr/share/man/man1/namecoin-util.1"
     gzip "$pkgdir/usr/share/man/man1/namecoin-cli.1"
     gzip "$pkgdir/usr/share/man/man1/namecoind.1"
     gzip "$pkgdir/usr/share/man/man1/namecoin-qt.1"
     gzip "$pkgdir/usr/share/man/man1/namecoin-tx.1"
     gzip "$pkgdir/usr/share/man/man1/namecoin-wallet.1"
+    gzip "$pkgdir/usr/share/man/man1/namecoin-util.1"
 }
-
